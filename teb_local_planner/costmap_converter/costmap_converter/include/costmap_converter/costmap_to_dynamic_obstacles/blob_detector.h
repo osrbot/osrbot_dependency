@@ -92,8 +92,8 @@ public:
   //! Update internal parameters
   void updateParameters(const cv::SimpleBlobDetector::Params& parameters);
   
-  void setParams(const cv::SimpleBlobDetector::Params& parasms) override;
-  cv::SimpleBlobDetector::Params getParams() const override;
+  void setParams(const cv::SimpleBlobDetector::Params& parasms);
+  cv::SimpleBlobDetector::Params getParams() const;
 
 protected:
   struct Center
