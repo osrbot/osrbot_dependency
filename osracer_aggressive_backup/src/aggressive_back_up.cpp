@@ -45,6 +45,11 @@ void AggressiveBackUp::onConfigure()
     RCLCPP_WARN(logger_, "default_speed must be positive; using 0.35 m/s");
     default_speed_ = 0.35;
   }
+
+  RCLCPP_INFO(
+    logger_,
+    "AggressiveBackUp configured: default_distance=%.3f m, default_speed=%.3f m/s",
+    default_distance_, default_speed_);
 }
 
 nav2_behaviors::Status AggressiveBackUp::onRun(
@@ -65,8 +70,11 @@ nav2_behaviors::Status AggressiveBackUp::onRun(
 
   RCLCPP_WARN(
     logger_,
-    "AggressiveBackUp backing up %.3f m at %.3f m/s without collision projection",
-    command_distance_, command_speed_);
+    "AggressiveBackUp TRIGGERED: goal_target_x=%.3f, goal_speed=%.3f, "
+    "using_distance=%.3f m, using_speed=%.3f m/s, duration=%.3f s, "
+    "time_allowance=%.3f s, collision_projection=disabled",
+    command->target.x, command->speed, command_distance_, command_speed_,
+    run_duration_, time_allowance_.seconds());
 
   return nav2_behaviors::Status::SUCCEEDED;
 }
@@ -86,6 +94,10 @@ nav2_behaviors::Status AggressiveBackUp::onCycleUpdate()
 
   if (elapsed >= run_duration_) {
     stopRobot();
+    RCLCPP_WARN(
+      logger_,
+      "AggressiveBackUp completed: elapsed=%.3f s, estimated_distance=%.3f m",
+      elapsed, feedback_->distance_traveled);
     return nav2_behaviors::Status::SUCCEEDED;
   }
 
