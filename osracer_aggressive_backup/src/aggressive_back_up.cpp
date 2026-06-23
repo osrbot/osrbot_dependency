@@ -46,6 +46,7 @@ AggressiveBackUp::AggressiveBackUp()
   scan_timeout_(0.35),
   last_odom_linear_x_(0.0),
   has_odom_(false),
+  enable_second_phase_(true),
   clear_local_costmap_(true),
   clear_global_costmap_(false),
   phase_(Phase::FIRST_ODOM_ESCAPE),
@@ -97,6 +98,8 @@ void AggressiveBackUp::onConfigure()
   nav2_util::declare_parameter_if_not_declared(
     node, behavior_name_ + ".scan_timeout", rclcpp::ParameterValue(scan_timeout_));
   nav2_util::declare_parameter_if_not_declared(
+    node, behavior_name_ + ".enable_second_phase", rclcpp::ParameterValue(enable_second_phase_));
+  nav2_util::declare_parameter_if_not_declared(
     node, behavior_name_ + ".clear_local_costmap", rclcpp::ParameterValue(clear_local_costmap_));
   nav2_util::declare_parameter_if_not_declared(
     node, behavior_name_ + ".clear_global_costmap", rclcpp::ParameterValue(clear_global_costmap_));
@@ -125,6 +128,7 @@ void AggressiveBackUp::onConfigure()
   node->get_parameter(behavior_name_ + ".front_sector_deg", front_sector_deg_);
   node->get_parameter(behavior_name_ + ".rear_sector_deg", rear_sector_deg_);
   node->get_parameter(behavior_name_ + ".scan_timeout", scan_timeout_);
+  node->get_parameter(behavior_name_ + ".enable_second_phase", enable_second_phase_);
   node->get_parameter(behavior_name_ + ".clear_local_costmap", clear_local_costmap_);
   node->get_parameter(behavior_name_ + ".clear_global_costmap", clear_global_costmap_);
   node->get_parameter(behavior_name_ + ".local_clear_service", local_clear_service_);
@@ -169,11 +173,13 @@ void AggressiveBackUp::onConfigure()
     logger_,
     "AggressiveBackUp configured: default_distance=%.3f m, default_speed=%.3f m/s, "
     "odom_topic=%s, scan_topic=%s, scan_base_frame=%s, stopped_velocity_threshold=%.3f m/s, "
-    "fallback_recovery_direction=%s, phase_ratios=%.2f/%.2f, clear_local=%s, clear_global=%s",
+    "fallback_recovery_direction=%s, enable_second_phase=%s, phase_ratios=%.2f/%.2f, "
+    "clear_local=%s, clear_global=%s",
     default_distance_, default_speed_, odom_topic_.c_str(), scan_topic_.c_str(),
     scan_base_frame_.c_str(), stopped_velocity_threshold_, fallback_recovery_direction_.c_str(),
-    first_phase_distance_ratio_, second_phase_distance_ratio_,
-    clear_local_costmap_ ? "true" : "false", clear_global_costmap_ ? "true" : "false");
+    enable_second_phase_ ? "true" : "false", first_phase_distance_ratio_,
+    second_phase_distance_ratio_, clear_local_costmap_ ? "true" : "false",
+    clear_global_costmap_ ? "true" : "false");
 }
 
 void AggressiveBackUp::odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg)
@@ -284,9 +290,15 @@ AggressiveBackUp::ScanClearance AggressiveBackUp::evaluateScanClearance() const
   return clearance;
 }
 
-double AggressiveBackUp::chooseScanRecoveryDirection(const double odom_direction)
+bool AggressiveBackUp::isObstacleCleared(const ScanClearance & clearance) const
 {
-  const auto clearance = evaluateScanClearance();
+  return clearance.valid && clearance.front >= min_exit_clearance_ &&
+         clearance.rear >= min_exit_clearance_;
+}
+
+double AggressiveBackUp::chooseScanRecoveryDirection(
+  const double odom_direction, const ScanClearance & clearance) const
+{
   if (!clearance.valid) {
     RCLCPP_WARN(logger_, "Scan clearance unavailable; keeping odom recovery direction %.1f", odom_direction);
     return odom_direction;
@@ -349,7 +361,8 @@ nav2_behaviors::Status AggressiveBackUp::onRun(
   odom_recovery_direction_ = getOdomRecoveryDirection();
 
   const double ratio_sum = first_phase_distance_ratio_ + second_phase_distance_ratio_;
-  const double first_distance = command_distance_ * first_phase_distance_ratio_ / ratio_sum;
+  const double first_distance = enable_second_phase_ ?
+    command_distance_ * first_phase_distance_ratio_ / ratio_sum : command_distance_;
 
   RCLCPP_WARN(
     logger_,
@@ -382,10 +395,24 @@ nav2_behaviors::Status AggressiveBackUp::onCycleUpdate()
       stopRobot();
       clearCostmaps();
       const double remaining_distance = std::max(0.0, command_distance_ - completed_distance_);
-      if (remaining_distance <= 0.0) {
+      if (remaining_distance <= 0.0 || !enable_second_phase_) {
+        RCLCPP_WARN(
+          logger_,
+          "AggressiveBackUp completed after first phase: remaining_distance=%.3f m, "
+          "enable_second_phase=%s",
+          remaining_distance, enable_second_phase_ ? "true" : "false");
         return nav2_behaviors::Status::SUCCEEDED;
       }
-      const double scan_direction = chooseScanRecoveryDirection(odom_recovery_direction_);
+      const auto clearance = evaluateScanClearance();
+      if (isObstacleCleared(clearance)) {
+        RCLCPP_WARN(
+          logger_,
+          "AggressiveBackUp completed after first phase: front_clearance=%.3f m, "
+          "rear_clearance=%.3f m, min_exit_clearance=%.3f m",
+          clearance.front, clearance.rear, min_exit_clearance_);
+        return nav2_behaviors::Status::SUCCEEDED;
+      }
+      const double scan_direction = chooseScanRecoveryDirection(odom_recovery_direction_, clearance);
       startPhase(
         Phase::SECOND_SCAN_ESCAPE, scan_direction, remaining_distance,
         std::fabs(command_speed_), clock_->now());

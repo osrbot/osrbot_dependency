@@ -51,7 +51,9 @@ private:
     const std::string & service_name);
   double getOdomRecoveryDirection() const;
   double getFallbackRecoveryDirection() const;
-  double chooseScanRecoveryDirection(const double odom_direction);
+  double chooseScanRecoveryDirection(
+    const double odom_direction, const ScanClearance & clearance) const;
+  bool isObstacleCleared(const ScanClearance & clearance) const;
   ScanClearance evaluateScanClearance() const;
   void startPhase(
     const Phase phase, const double direction, const double distance,
@@ -82,6 +84,7 @@ private:
   double scan_timeout_;
   double last_odom_linear_x_;
   bool has_odom_;
+  bool enable_second_phase_;
   bool clear_local_costmap_;
   bool clear_global_costmap_;
 
