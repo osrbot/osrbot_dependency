@@ -54,6 +54,12 @@ install(FILES osracer_aggressive_backup.xml
   DESTINATION share/${PROJECT_NAME}
 )
 
+install(FILES
+  README.md
+  CHANGELOG.md
+  DESTINATION share/${PROJECT_NAME}
+)
+
 ament_export_include_directories(include)
 ament_export_libraries(${library_name})
 ament_export_dependencies(
