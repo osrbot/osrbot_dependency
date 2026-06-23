@@ -11,6 +11,7 @@ find_package(nav2_behaviors REQUIRED)
 find_package(nav2_core REQUIRED)
 find_package(nav2_msgs REQUIRED)
 find_package(nav2_util REQUIRED)
+find_package(nav_msgs REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rclcpp REQUIRED)
 
@@ -28,6 +29,7 @@ ament_target_dependencies(${library_name}
   nav2_core
   nav2_msgs
   nav2_util
+  nav_msgs
   pluginlib
   rclcpp
 )
@@ -56,6 +58,7 @@ ament_export_dependencies(
   nav2_core
   nav2_msgs
   nav2_util
+  nav_msgs
   pluginlib
   rclcpp
 )
