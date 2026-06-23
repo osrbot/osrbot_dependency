@@ -1,0 +1,11 @@
+<class_libraries>
+  <library path="osracer_aggressive_backup_core">
+    <class name="osracer_aggressive_backup/AggressiveBackUp"
+           type="osracer_aggressive_backup::AggressiveBackUp"
+           base_class_type="nav2_core::Behavior">
+      <description>
+        Back up using direct negative cmd_vel output and no costmap collision projection.
+      </description>
+    </class>
+  </library>
+</class_libraries>
