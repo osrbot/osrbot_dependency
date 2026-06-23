@@ -14,6 +14,8 @@ find_package(nav2_util REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 
 include_directories(include)
 
@@ -32,6 +34,8 @@ ament_target_dependencies(${library_name}
   nav_msgs
   pluginlib
   rclcpp
+  tf2_geometry_msgs
+  sensor_msgs
 )
 
 pluginlib_export_plugin_description_file(nav2_core osracer_aggressive_backup.xml)
@@ -61,6 +65,8 @@ ament_export_dependencies(
   nav_msgs
   pluginlib
   rclcpp
+  tf2_geometry_msgs
+  sensor_msgs
 )
 
 ament_package()
